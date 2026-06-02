@@ -1,0 +1,41 @@
+version: '3.8'
+
+# ============================================================
+# Docker Compose — Insurance Camel POC
+# ============================================================
+services:
+  insurance-camel-poc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: insurance-camel-poc
+    ports:
+      - "8080:8080"   # REST API, Swagger, H2 Console, Prometheus, Health
+      - "8082:8082"   # H2 Web Console (standalone)
+      - "9092:9092"   # H2 TCP Server (JDBC)
+    environment:
+      - JAVA_OPTS=-Xms512m -Xmx2g -XX:+UseG1GC -XX:+UseContainerSupport
+      - QUARKUS_LOG_LEVEL=INFO
+      - QUARKUS_LOG_CATEGORY_COM_INSURANCE_LEVEL=DEBUG
+      - INSURANCE_PROCESSING_PAGE_SIZE=1000
+      - INSURANCE_PROCESSING_SEDA_CONCURRENCY=10
+      - INSURANCE_PROCESSING_THREAD_POOL_SIZE=20
+    volumes:
+      - camel-spool:/tmp/camel-spool
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/q/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+    networks:
+      - insurance-net
+
+volumes:
+  camel-spool:
+    driver: local
+
+networks:
+  insurance-net:
+    driver: bridge
